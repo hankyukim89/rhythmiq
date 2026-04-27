@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rhythmiq Visualizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+</head>
+<body>
+
+<div class="app-container">
+  <header class="toolbar">
+    <div class="toolbar-section">
+      <div class="toolbar-label">Notes</div>
+      <div class="button-group">
+        <button class="btn active" data-type="note" data-val="4" title="Whole Note">
+          <svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="5" ry="3.5" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(-15 12 12)"/></svg>
+          Whole
+        </button>
+        <button class="btn" data-type="note" data-val="2" title="Half Note">
+          <svg viewBox="0 0 24 24"><ellipse cx="10" cy="16" rx="4" ry="3" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(-15 10 16)"/><line x1="13.5" y1="15" x2="13.5" y2="6" stroke="currentColor" stroke-width="2"/></svg>
+          Half
+        </button>
+        <button class="btn" data-type="note" data-val="1" title="Quarter Note">
+          <svg viewBox="0 0 24 24"><ellipse cx="10" cy="16" rx="4" ry="3" fill="currentColor" transform="rotate(-15 10 16)"/><line x1="13.5" y1="15" x2="13.5" y2="6" stroke="currentColor" stroke-width="2"/></svg>
+          Quarter
+        </button>
+        <button class="btn" data-type="note" data-val="0.5" title="Eighth Note">
+          <svg viewBox="0 0 24 24"><ellipse cx="9" cy="16" rx="4" ry="3" fill="currentColor" transform="rotate(-15 9 16)"/><line x1="12.5" y1="15" x2="12.5" y2="5" stroke="currentColor" stroke-width="2"/><path d="M 12.5 5 Q 16 8 16 12 Q 13 8 12.5 7" fill="currentColor"/></svg>
+          Eighth
+        </button>
+        <button class="btn" data-type="note" data-val="0.25" title="Sixteenth Note">
+          <svg viewBox="0 0 24 24"><ellipse cx="9" cy="17" rx="4" ry="3" fill="currentColor" transform="rotate(-15 9 17)"/><line x1="12.5" y1="16" x2="12.5" y2="4" stroke="currentColor" stroke-width="2"/><path d="M 12.5 4 Q 16 7 16 11 Q 13 7 12.5 6 M 12.5 9 Q 16 12 16 16 Q 13 12 12.5 11" fill="currentColor"/></svg>
+          16th
+        </button>
+      </div>
+    </div>
+    
+    <div class="toolbar-section">
+      <div class="toolbar-label">Rests</div>
+      <div class="button-group">
+        <button class="btn" data-type="rest" data-val="4" title="Whole Rest">
+          <svg viewBox="0 0 24 24"><rect x="8" y="12" width="8" height="4" fill="currentColor"/><line x1="6" y1="12" x2="18" y2="12" stroke="currentColor" stroke-width="1.5"/></svg>
+          Whole
+        </button>
+        <button class="btn" data-type="rest" data-val="2" title="Half Rest">
+          <svg viewBox="0 0 24 24"><rect x="8" y="8" width="8" height="4" fill="currentColor"/><line x1="6" y1="12" x2="18" y2="12" stroke="currentColor" stroke-width="1.5"/></svg>
+          Half
+        </button>
+        <button class="btn" data-type="rest" data-val="1" title="Quarter Rest">
+          <svg viewBox="0 0 24 24"><path d="M 10 5 L 14 10 L 11 14 L 15 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Quarter
+        </button>
+        <button class="btn" data-type="rest" data-val="0.5" title="Eighth Rest">
+          <svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="1.5" fill="currentColor"/><path d="M 10 8 Q 14 10 12 16 L 10 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Eighth
+        </button>
+        <button class="btn" data-type="rest" data-val="0.25" title="Sixteenth Rest">
+          <svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.5" fill="currentColor"/><path d="M 9 6 Q 13 8 11 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="9" cy="12" r="1.5" fill="currentColor"/><path d="M 9 12 Q 13 14 11 18 L 9 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          16th
+        </button>
+      </div>
+    </div>
+
+    <div class="toolbar-section">
+      <div class="toolbar-label">Modify</div>
+      <div class="button-group">
+        <button class="btn" id="btn-dot" title="Dotted Note">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2" fill="currentColor"/></svg> Dot
+        </button>
+        <button class="btn" id="btn-ddot" title="Double Dotted Note">
+          <svg viewBox="0 0 24 24"><circle cx="10" cy="12" r="2" fill="currentColor"/><circle cx="16" cy="12" r="2" fill="currentColor"/></svg> Dbl Dot
+        </button>
+        <button class="btn" id="btn-triplet" title="Triplet">
+          <svg viewBox="0 0 24 24"><text x="12" y="16" font-size="12" text-anchor="middle" font-weight="bold" fill="currentColor">3</text><path d="M 6 8 L 6 6 L 18 6 L 18 8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg> Triplet
+        </button>
+        <button class="btn" id="btn-tie" title="Tie">
+          <svg viewBox="0 0 24 24"><path d="M 6 12 Q 12 18 18 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Tie
+        </button>
+      </div>
+    </div>
+
+    <div class="toolbar-section controls-section">
+      <div class="toolbar-label">Settings</div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="cb-metronome"> 
+        <span class="slider"></span>
+        <span class="toggle-label">Metronome</span>
+      </label>
+
+      <label class="toggle-switch">
+        <input type="checkbox" id="cb-countin"> 
+        <span class="slider"></span>
+        <span class="toggle-label">Count In</span>
+      </label>
+      
+      <div class="input-group">
+        <label for="input-bpm">BPM</label>
+        <input type="number" id="input-bpm" value="120" min="40" max="240">
+      </div>
+      <div class="input-group">
+        <label for="input-bars">Bars</label>
+        <input type="number" id="input-bars" value="4" min="1" max="16">
+      </div>
+      
+      <div class="action-buttons">
+        <button class="btn btn-clear" id="btn-clear">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M 3 6 L 21 6 M 8 6 L 8 4 Q 8 3 9 3 L 15 3 Q 16 3 16 4 L 16 6 M 5 6 L 5 20 Q 5 21 6 21 L 18 21 Q 19 21 19 20 L 19 6 M 10 10 L 10 17 M 14 10 L 14 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button class="btn btn-play" id="btn-play">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M 8 5 L 19 12 L 8 19 Z" fill="currentColor"/></svg> Play
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-area" id="main-area">
+    <div class="canvas-wrapper">
+      <div id="notation-container">
+        <div id="vexflow-output"></div>
+        <canvas id="interaction-canvas"></canvas>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
