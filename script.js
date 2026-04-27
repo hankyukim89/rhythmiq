@@ -338,7 +338,11 @@ function render() {
           let gap = noteStartBeatInBar - currentBeatInBar;
           while (gap > 0.01) {
             let fillVal = gap >= 4 ? 4 : gap >= 2 ? 2 : gap >= 1 ? 1 : gap >= 0.5 ? 0.5 : 0.25;
-            const rest = new VF.StaveNote({ keys: ["b/4"], duration: valToVexDur(fillVal, 'rest') }).setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
+            const rest = new VF.StaveNote({ 
+              keys: ["b/4"], 
+              duration: valToVexDur(fillVal, 'rest'),
+              stem_direction: -1
+            }).setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
 
             const tickContext = new VF.TickContext();
             tickContext.setX((currentBeatInBar / state.beatsPerBar) * usableWidth);
@@ -356,7 +360,8 @@ function render() {
         const color = n.type === 'rest' ? '#64748b' : '#0f172a';
         let staveNote = new VF.StaveNote({
           keys: [n.type === 'rest' ? "b/4" : "b/4"],
-          duration: valToVexDur(n.val, n.type)
+          duration: valToVexDur(n.val, n.type),
+          stem_direction: -1
         }).setStyle({ fillStyle: color, strokeStyle: color });
 
         if (n.dot > 0) VF.Dot.buildAndAttach([staveNote], { all: true });
@@ -379,7 +384,11 @@ function render() {
         if (gap > 0.001) {
           while (gap > 0.01) {
             let fillVal = gap >= 4 ? 4 : gap >= 2 ? 2 : gap >= 1 ? 1 : gap >= 0.5 ? 0.5 : 0.25;
-            const rest = new VF.StaveNote({ keys: ["b/4"], duration: valToVexDur(fillVal, 'rest') }).setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
+            const rest = new VF.StaveNote({ 
+              keys: ["b/4"], 
+              duration: valToVexDur(fillVal, 'rest'),
+              stem_direction: -1
+            }).setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
 
             const tickContext = new VF.TickContext();
             tickContext.setX((currentBeatInBar / state.beatsPerBar) * usableWidth);
@@ -414,7 +423,8 @@ function render() {
               if (rn) {
                 const newNote = new VF.StaveNote({
                   keys: ["b/4"],
-                  duration: valToVexDur(rn.stateNote.val, rn.stateNote.type)
+                  duration: valToVexDur(rn.stateNote.val, rn.stateNote.type),
+                  stem_direction: -1
                 }).setStyle({ fillStyle: '#0f172a', strokeStyle: '#0f172a' });
 
                 if (rn.stateNote.dot > 0) VF.Dot.buildAndAttach([newNote], { all: true });
