@@ -322,8 +322,8 @@ function render() {
     const barEndBeat = barStartBeat + state.beatsPerBar;
     const barNotes = state.notes.filter(n => n.startBeat >= barStartBeat && n.startBeat < barEndBeat);
 
-    const notationPadding = 15;
-    const usableWidth = (barBounds[b].endX - barBounds[b].startX) - notationPadding;
+    const NOTE_OFFSET = 12;
+    const usableWidth = (barBounds[b].endX - barBounds[b].startX);
 
     let vexNotes = [];
     let currentBeatInBar = 0;
@@ -345,7 +345,7 @@ function render() {
             }).setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
 
             const tickContext = new VF.TickContext();
-            tickContext.setX((currentBeatInBar / state.beatsPerBar) * usableWidth);
+            tickContext.setX(NOTE_OFFSET + (currentBeatInBar / state.beatsPerBar) * usableWidth);
             tickContext.addTickable(rest);
             tickContext.preFormat();
             rest.setStave(stave);
@@ -368,7 +368,7 @@ function render() {
         if (n.dot > 1) VF.Dot.buildAndAttach([staveNote], { all: true });
 
         const tickContext = new VF.TickContext();
-        tickContext.setX((currentBeatInBar / state.beatsPerBar) * usableWidth);
+        tickContext.setX(NOTE_OFFSET + (currentBeatInBar / state.beatsPerBar) * usableWidth);
         tickContext.addTickable(staveNote);
         tickContext.preFormat();
         staveNote.setStave(stave);
@@ -391,7 +391,7 @@ function render() {
             }).setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
 
             const tickContext = new VF.TickContext();
-            tickContext.setX((currentBeatInBar / state.beatsPerBar) * usableWidth);
+            tickContext.setX(NOTE_OFFSET + (currentBeatInBar / state.beatsPerBar) * usableWidth);
             tickContext.addTickable(rest);
             tickContext.preFormat();
             rest.setStave(stave);
