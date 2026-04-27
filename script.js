@@ -31,7 +31,7 @@ let activeNodes = [];
 const STAFF_PADDING_LEFT = 20;
 const FIRST_BAR_MODIFIER_WIDTH = 70; // Space for Treble Clef and Time Signature
 const BAR_START_PADDING = 20;        // Space after barline before first note
-const PIXELS_PER_BEAT = 100;
+const PIXELS_PER_BEAT = 160;
 const STAFF_HEIGHT = 160;
 const PIANO_ROLL_HEIGHT = 24;
 
@@ -374,7 +374,10 @@ function render() {
     }
 
     if (vexNotes.length > 0) {
-      const beams = VF.Beam.generateBeams(vexNotes.filter(n => !n.isRest()));
+      const beams = VF.Beam.generateBeams(vexNotes, {
+        groups: [new VF.Fraction(1, 4)],
+        beam_rests: false
+      });
       vexNotes.forEach(note => note.setContext(context).draw());
       beams.forEach(beam => beam.setContext(context).draw());
     }
@@ -455,12 +458,6 @@ function render() {
     if (startBarIdx === endBarIdx && barBounds[startBarIdx]) {
       const usableWidth = (barBounds[startBarIdx].endX - barBounds[startBarIdx].startX) - EXTRA_END_PADDING;
       blockWidth = (totalDur / state.beatsPerBar) * usableWidth;
-
-      // Connect the block across the barline gap if it reaches the end of the measure
-      if (note.startBeat + totalDur === (startBarIdx + 1) * state.beatsPerBar && startBarIdx + 1 < state.bars) {
-        blockWidth = barBounds[startBarIdx + 1].startX - x;
-      }
-
     } else {
       const endX = getXFromBeat(note.startBeat + totalDur);
       blockWidth = endX - x;
@@ -469,7 +466,7 @@ function render() {
     const color = note.type === 'rest' ? '#94a3b8' : '#3b82f6';
 
     ctx.fillStyle = color;
-    ctx.fillRect(x, rollY, blockWidth, PIANO_ROLL_HEIGHT);
+    ctx.fillRect(x + 1, rollY, Math.max(1, blockWidth - 2), PIANO_ROLL_HEIGHT);
 
     noteIdx = j + 1;
   }
@@ -492,10 +489,10 @@ function render() {
     }
 
     ctx.fillStyle = 'rgba(59, 130, 246, 0.4)';
-    ctx.fillRect(x, rollY, blockWidth, PIANO_ROLL_HEIGHT);
+    ctx.fillRect(x + 1, rollY, Math.max(1, blockWidth - 2), PIANO_ROLL_HEIGHT);
 
     ctx.fillStyle = 'rgba(59, 130, 246, 0.05)';
-    ctx.fillRect(x, 10, blockWidth, 120);
+    ctx.fillRect(x + 1, 10, Math.max(1, blockWidth - 2), 120);
   }
 
   // Draw Playhead
