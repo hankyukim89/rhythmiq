@@ -42,8 +42,8 @@ function init() {
 }
 
 function getBarWidth(b) {
-  const baseW = BAR_START_PADDING + (state.beatsPerBar * PIXELS_PER_BEAT);
-  return b === 0 ? baseW + FIRST_BAR_MODIFIER_WIDTH : baseW;
+  const gridW = state.beatsPerBar * PIXELS_PER_BEAT;
+  return b === 0 ? gridW + 80 : gridW;
 }
 
 function resizeAndRender() {
@@ -148,7 +148,7 @@ function getEffectiveDuration(val, dot, triplet) {
   return dur;
 }
 
-const EXTRA_END_PADDING = 0;
+const EXTRA_END_PADDING = 20;
 
 function getXFromBeat(beat) {
   if (barBounds.length === 0) return -1;
@@ -276,31 +276,25 @@ function render() {
   const allRenderedNotes = [];
 
   let currentStaveX = STAFF_PADDING_LEFT;
-  const staves = [];
   for (let b = 0; b < state.bars; b++) {
     const staveWidth = getBarWidth(b);
     const stave = new VF.Stave(currentStaveX, 10, staveWidth);
     if (b === 0) stave.addClef("treble").addTimeSignature(state.beatsPerBar + "/4");
     stave.setContext(context).draw();
-    staves.push(stave);
-    currentStaveX += staveWidth;
-  }
 
-  for (let b = 0; b < state.bars; b++) {
-    const usableWidth = state.beatsPerBar * PIXELS_PER_BEAT;
+    const gridW = state.beatsPerBar * PIXELS_PER_BEAT;
+    const startX = 110 + b * gridW;
     barBounds.push({
-      startX: staves[b].getNoteStartX(),
-      endX: staves[b].getNoteStartX() + usableWidth
+      startX: startX,
+      endX: startX + gridW
     });
-  }
+    currentStaveX += staveWidth;
 
-  for (let b = 0; b < state.bars; b++) {
-    const stave = staves[b];
     const barStartBeat = b * state.beatsPerBar;
     const barEndBeat = barStartBeat + state.beatsPerBar;
     const barNotes = state.notes.filter(n => n.startBeat >= barStartBeat && n.startBeat < barEndBeat);
 
-    const usableWidth = (barBounds[b].endX - barBounds[b].startX) - EXTRA_END_PADDING;
+    const usableWidth = gridW;
 
     let vexNotes = [];
     let currentBeatInBar = 0;
@@ -317,8 +311,12 @@ function render() {
             let fillVal = gap >= 4 ? 4 : gap >= 2 ? 2 : gap >= 1 ? 1 : gap >= 0.5 ? 0.5 : 0.25;
             const rest = new VF.StaveNote({ keys: ["b/4"], duration: valToVexDur(fillVal, 'rest') }).setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
 
+            const expectedNoteStartX = 110 + b * (state.beatsPerBar * PIXELS_PER_BEAT);
+            const actualNoteStartX = stave.getNoteStartX();
+            const offset = expectedNoteStartX - actualNoteStartX;
+
             const tickContext = new VF.TickContext();
-            tickContext.setX((currentBeatInBar / state.beatsPerBar) * usableWidth);
+            tickContext.setX(offset + (currentBeatInBar / state.beatsPerBar) * usableWidth);
             tickContext.addTickable(rest);
             tickContext.preFormat();
             rest.setStave(stave);
@@ -339,8 +337,12 @@ function render() {
         if (n.dot > 0) VF.Dot.buildAndAttach([staveNote], { all: true });
         if (n.dot > 1) VF.Dot.buildAndAttach([staveNote], { all: true });
 
+        const expectedNoteStartX = 110 + b * (state.beatsPerBar * PIXELS_PER_BEAT);
+        const actualNoteStartX = stave.getNoteStartX();
+        const offset = expectedNoteStartX - actualNoteStartX;
+
         const tickContext = new VF.TickContext();
-        tickContext.setX((currentBeatInBar / state.beatsPerBar) * usableWidth);
+        tickContext.setX(offset + (currentBeatInBar / state.beatsPerBar) * usableWidth);
         tickContext.addTickable(staveNote);
         tickContext.preFormat();
         staveNote.setStave(stave);
@@ -358,8 +360,12 @@ function render() {
             let fillVal = gap >= 4 ? 4 : gap >= 2 ? 2 : gap >= 1 ? 1 : gap >= 0.5 ? 0.5 : 0.25;
             const rest = new VF.StaveNote({ keys: ["b/4"], duration: valToVexDur(fillVal, 'rest') }).setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
 
+            const expectedNoteStartX = 110 + b * (state.beatsPerBar * PIXELS_PER_BEAT);
+            const actualNoteStartX = stave.getNoteStartX();
+            const offset = expectedNoteStartX - actualNoteStartX;
+
             const tickContext = new VF.TickContext();
-            tickContext.setX((currentBeatInBar / state.beatsPerBar) * usableWidth);
+            tickContext.setX(offset + (currentBeatInBar / state.beatsPerBar) * usableWidth);
             tickContext.addTickable(rest);
             tickContext.preFormat();
             rest.setStave(stave);
@@ -399,44 +405,23 @@ function render() {
   }
   ties.forEach(t => t.setContext(context).draw());
 
-  // Draw Piano Roll Track Background
+  // --- 1. Background ---
   const rollY = 130;
-  ctx.strokeStyle = '#e2e8f0';
-  ctx.lineWidth = 1;
-
-  // Continuous Track background
   if (barBounds.length > 0) {
-    const firstBar = barBounds[0];
-    const lastBar = barBounds[state.bars - 1];
-    if (firstBar && lastBar) {
-      const startX = firstBar.startX;
-      const endX = lastBar.endX - EXTRA_END_PADDING;
-      ctx.strokeRect(startX, rollY, endX - startX, PIANO_ROLL_HEIGHT);
-    }
+    const startX = barBounds[0].startX;
+    const endX = barBounds[state.bars - 1].endX;
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(startX, rollY, endX - startX, PIANO_ROLL_HEIGHT);
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(startX, rollY, endX - startX, PIANO_ROLL_HEIGHT);
   }
 
-  // Grid Lines mapped EXACTLY to VexFlow bounds
-  ctx.beginPath();
-  for (let b = 0; b < state.bars; b++) {
-    if (!barBounds[b]) continue;
-    const bounds = barBounds[b];
-    const usableWidth = (bounds.endX - bounds.startX) - EXTRA_END_PADDING;
-
-    // Draw beat lines inside the bar
-    for (let beat = 0; beat <= state.beatsPerBar; beat++) {
-      const x = bounds.startX + (beat / state.beatsPerBar) * usableWidth;
-      ctx.moveTo(x, rollY);
-      ctx.lineTo(x, rollY + PIANO_ROLL_HEIGHT);
-    }
-  }
-  ctx.stroke();
-
-  // Draw filled blocks matching strict DAW grid
+  // --- 2. Blue Blocks (Notes) ---
   let noteIdx = 0;
   while (noteIdx < state.notes.length) {
     const note = state.notes[noteIdx];
     let x = getXFromBeat(note.startBeat);
-
     let totalDur = getEffectiveDuration(note.val, note.dot, note.triplet);
     let j = noteIdx;
 
@@ -454,27 +439,51 @@ function render() {
 
     let blockWidth;
     if (startBarIdx === endBarIdx && barBounds[startBarIdx]) {
-      const usableWidth = (barBounds[startBarIdx].endX - barBounds[startBarIdx].startX) - EXTRA_END_PADDING;
+      const usableWidth = barBounds[startBarIdx].endX - barBounds[startBarIdx].startX;
       blockWidth = (totalDur / state.beatsPerBar) * usableWidth;
-
-      // Connect the block across the barline gap if it reaches the end of the measure
-      if (note.startBeat + totalDur === (startBarIdx + 1) * state.beatsPerBar && startBarIdx + 1 < state.bars) {
-        blockWidth = barBounds[startBarIdx + 1].startX - x;
-      }
-
     } else {
       const endX = getXFromBeat(note.startBeat + totalDur);
       blockWidth = endX - x;
     }
 
     const color = note.type === 'rest' ? '#94a3b8' : '#3b82f6';
-
     ctx.fillStyle = color;
-    // Add 1px margin on left/right to segment the blocks visually
-    ctx.fillRect(x + 1, rollY, blockWidth - 2, PIANO_ROLL_HEIGHT);
-
+    ctx.fillRect(x, rollY, blockWidth, PIANO_ROLL_HEIGHT);
     noteIdx = j + 1;
   }
+
+  // --- 3. Grid Lines ON TOP ---
+  ctx.strokeStyle = '#cbd5e1'; 
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let b = 0; b < state.bars; b++) {
+    if (!barBounds[b]) continue;
+    const bounds = barBounds[b];
+    const usableWidth = bounds.endX - bounds.startX;
+    for(let beat = 0; beat <= state.beatsPerBar; beat++) {
+      const x = bounds.startX + (beat / state.beatsPerBar) * usableWidth;
+      ctx.moveTo(x, rollY);
+      ctx.lineTo(x, rollY + PIANO_ROLL_HEIGHT);
+    }
+  }
+  ctx.stroke();
+
+  // Faint 16th note subgrid lines
+  ctx.strokeStyle = 'rgba(203, 213, 225, 0.4)';
+  ctx.beginPath();
+  for (let b = 0; b < state.bars; b++) {
+    if (!barBounds[b]) continue;
+    const bounds = barBounds[b];
+    const usableWidth = bounds.endX - bounds.startX;
+    const subBeats = state.beatsPerBar * 4;
+    for(let sub = 0; sub <= subBeats; sub++) {
+      if (sub % 4 === 0) continue; 
+      const x = bounds.startX + (sub / subBeats) * usableWidth;
+      ctx.moveTo(x, rollY);
+      ctx.lineTo(x, rollY + PIANO_ROLL_HEIGHT);
+    }
+  }
+  ctx.stroke();
 
   // Draw Ghost Hover
   if (state.hoverBeat >= 0 && !state.playing) {
@@ -494,10 +503,10 @@ function render() {
     }
 
     ctx.fillStyle = 'rgba(59, 130, 246, 0.4)';
-    ctx.fillRect(x + 1, rollY, blockWidth - 2, PIANO_ROLL_HEIGHT);
+    ctx.fillRect(x, rollY, blockWidth, PIANO_ROLL_HEIGHT);
 
     ctx.fillStyle = 'rgba(59, 130, 246, 0.05)';
-    ctx.fillRect(x + 1, 10, blockWidth - 2, 120);
+    ctx.fillRect(x, 10, blockWidth, 120);
   }
 
   // Draw Playhead
