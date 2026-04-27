@@ -15,7 +15,8 @@ const state = {
   playheadBeat: 0,
   metronome: false,
   countIn: false,
-  isCountingIn: false
+  isCountingIn: false,
+  showGuides: false
 };
 
 const vfOutput = document.getElementById('vexflow-output');
@@ -30,8 +31,8 @@ let activeNodes = [];
 // Precision Layout Constants
 const STAFF_PADDING_LEFT = 20;
 const FIRST_BAR_MODIFIER_WIDTH = 70; // Space for Treble Clef and Time Signature
-const BAR_START_PADDING = 20;        // Space after barline before first note
-const PIXELS_PER_BEAT = 160;
+const BAR_START_PADDING = 0;        // Space after barline before first note
+let PIXELS_PER_BEAT = 160;
 const STAFF_HEIGHT = 160;
 const PIANO_ROLL_HEIGHT = 24;
 
@@ -47,6 +48,13 @@ function getBarWidth(b) {
 }
 
 function resizeAndRender() {
+  const wrapper = document.querySelector('.canvas-wrapper');
+  const availableWidth = wrapper ? wrapper.clientWidth - 40 : window.innerWidth - 80;
+
+  const totalBeats = state.bars * state.beatsPerBar;
+  const fixedWidth = STAFF_PADDING_LEFT + FIRST_BAR_MODIFIER_WIDTH + (state.bars * BAR_START_PADDING) + 40;
+  PIXELS_PER_BEAT = Math.max(120, (availableWidth - fixedWidth) / totalBeats);
+
   let totalWidth = STAFF_PADDING_LEFT;
   for (let b = 0; b < state.bars; b++) totalWidth += getBarWidth(b);
   totalWidth += 40; // right padding
@@ -120,6 +128,11 @@ function setupEventListeners() {
 
   document.getElementById('cb-countin').addEventListener('change', (e) => {
     state.countIn = e.target.checked;
+  });
+
+  document.getElementById('cb-guides').addEventListener('change', (e) => {
+    state.showGuides = e.target.checked;
+    render();
   });
 
   document.getElementById('input-bpm').addEventListener('change', (e) => {
@@ -286,10 +299,20 @@ function render() {
     currentStaveX += staveWidth;
   }
 
+  const uniformUsableWidth = BAR_START_PADDING + (state.beatsPerBar * PIXELS_PER_BEAT);
   for (let b = 0; b < state.bars; b++) {
+    let startX;
+    if (b === 0) {
+      startX = state.bars > 1 ? staves[1].getX() - uniformUsableWidth : staves[0].getX() + FIRST_BAR_MODIFIER_WIDTH;
+    } else {
+      startX = staves[b].getX();
+    }
+
+    staves[b].setNoteStartX(startX + BAR_START_PADDING);
+
     barBounds.push({
-      startX: staves[b].getNoteStartX(),
-      endX: b < state.bars - 1 ? staves[b+1].getNoteStartX() : staves[b].getNoteEndX()
+      startX: startX,
+      endX: startX + uniformUsableWidth
     });
   }
 
@@ -376,10 +399,48 @@ function render() {
     if (vexNotes.length > 0) {
       const beams = VF.Beam.generateBeams(vexNotes, {
         groups: [new VF.Fraction(1, 4)],
-        beam_rests: false
+        beam_rests: true,
+        beam_middle_only: true
       });
+      
+      const validBeams = [];
+      beams.forEach(beam => {
+        const nonRests = beam.notes.filter(n => !n.isRest());
+        if (nonRests.length < 2) {
+          beam.notes.forEach(n => {
+            if (!n.isRest()) {
+              const rn = allRenderedNotes.find(r => r.vexNote === n);
+              if (rn) {
+                const newNote = new VF.StaveNote({
+                  keys: ["b/4"],
+                  duration: valToVexDur(rn.stateNote.val, rn.stateNote.type)
+                }).setStyle({ fillStyle: '#0f172a', strokeStyle: '#0f172a' });
+
+                if (rn.stateNote.dot > 0) VF.Dot.buildAndAttach([newNote], { all: true });
+                if (rn.stateNote.dot > 1) VF.Dot.buildAndAttach([newNote], { all: true });
+
+                const tc = new VF.TickContext();
+                tc.setX(n.getTickContext().getX());
+                tc.addTickable(newNote);
+                tc.preFormat();
+                newNote.setStave(stave);
+                newNote.setTickContext(tc);
+
+                const vIdx = vexNotes.indexOf(n);
+                if (vIdx !== -1) vexNotes[vIdx] = newNote;
+                rn.vexNote = newNote;
+              }
+            } else {
+              n.setBeam(null);
+            }
+          });
+        } else {
+          validBeams.push(beam);
+        }
+      });
+
       vexNotes.forEach(note => note.setContext(context).draw());
-      beams.forEach(beam => beam.setContext(context).draw());
+      validBeams.forEach(beam => beam.setContext(context).draw());
     }
   }
 
@@ -432,6 +493,30 @@ function render() {
     }
   }
   ctx.stroke();
+
+  if (state.showGuides) {
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+    for (let b = 0; b < state.bars; b++) {
+      if (!barBounds[b]) continue;
+      const bounds = barBounds[b];
+      const usableWidth = (bounds.endX - bounds.startX) - EXTRA_END_PADDING;
+
+      for (let beat = 0; beat < state.beatsPerBar; beat++) {
+        const x = bounds.startX + (beat / state.beatsPerBar) * usableWidth;
+        ctx.beginPath();
+        if (state.beatsPerBar % 2 === 0 && beat === state.beatsPerBar / 2) {
+          ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)'; // Red for the middle beat
+        } else {
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)'; // Slate for standard beats
+        }
+        ctx.moveTo(x, 10);
+        ctx.lineTo(x, rollY + PIANO_ROLL_HEIGHT);
+        ctx.stroke();
+      }
+    }
+    ctx.setLineDash([]);
+  }
 
   // Draw filled blocks matching strict DAW grid
   let noteIdx = 0;
