@@ -322,7 +322,8 @@ function render() {
     const barEndBeat = barStartBeat + state.beatsPerBar;
     const barNotes = state.notes.filter(n => n.startBeat >= barStartBeat && n.startBeat < barEndBeat);
 
-    const usableWidth = (barBounds[b].endX - barBounds[b].startX) - EXTRA_END_PADDING;
+    const notationPadding = 15;
+    const usableWidth = (barBounds[b].endX - barBounds[b].startX) - notationPadding;
 
     let vexNotes = [];
     let currentBeatInBar = 0;
