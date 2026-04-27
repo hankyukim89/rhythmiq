@@ -287,9 +287,10 @@ function render() {
   }
 
   for (let b = 0; b < state.bars; b++) {
+    const usableWidth = state.beatsPerBar * PIXELS_PER_BEAT;
     barBounds.push({
       startX: staves[b].getNoteStartX(),
-      endX: b < state.bars - 1 ? staves[b+1].getNoteStartX() : staves[b].getNoteEndX()
+      endX: staves[b].getNoteStartX() + usableWidth
     });
   }
 
@@ -469,7 +470,8 @@ function render() {
     const color = note.type === 'rest' ? '#94a3b8' : '#3b82f6';
 
     ctx.fillStyle = color;
-    ctx.fillRect(x, rollY, blockWidth, PIANO_ROLL_HEIGHT);
+    // Add 1px margin on left/right to segment the blocks visually
+    ctx.fillRect(x + 1, rollY, blockWidth - 2, PIANO_ROLL_HEIGHT);
 
     noteIdx = j + 1;
   }
@@ -492,10 +494,10 @@ function render() {
     }
 
     ctx.fillStyle = 'rgba(59, 130, 246, 0.4)';
-    ctx.fillRect(x, rollY, blockWidth, PIANO_ROLL_HEIGHT);
+    ctx.fillRect(x + 1, rollY, blockWidth - 2, PIANO_ROLL_HEIGHT);
 
     ctx.fillStyle = 'rgba(59, 130, 246, 0.05)';
-    ctx.fillRect(x, 10, blockWidth, 120);
+    ctx.fillRect(x + 1, 10, blockWidth - 2, 120);
   }
 
   // Draw Playhead
