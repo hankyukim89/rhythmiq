@@ -97,7 +97,6 @@ function setupEventListeners() {
     });
   };
 
-  toggleBtn('btn-dot', 'dot', [{ id: 'btn-ddot', prop: 'ddot' }]);
   document.getElementById('btn-ddot').addEventListener('click', (e) => {
     let active = e.currentTarget.classList.toggle('active');
     state.dot = active ? 2 : 0;
@@ -178,6 +177,22 @@ function getXFromBeat(beat) {
   return bounds.startX + (beatInBar / state.beatsPerBar) * usableWidth;
 }
 
+function getRawBeatFromX(x) {
+  if (barBounds.length === 0) return -1;
+
+  for (let b = 0; b < barBounds.length; b++) {
+    const bounds = barBounds[b];
+    const usableWidth = (bounds.endX - bounds.startX) - EXTRA_END_PADDING;
+
+    if (x >= bounds.startX - 20 && x <= bounds.startX + usableWidth + 20) {
+      const constrainedX = Math.max(bounds.startX, Math.min(x, bounds.startX + usableWidth));
+      const rawBeat = ((constrainedX - bounds.startX) / usableWidth) * state.beatsPerBar;
+      return (b * state.beatsPerBar) + Math.max(0, Math.min(rawBeat, state.beatsPerBar));
+    }
+  }
+  return -1;
+}
+
 function getBeatFromX(x) {
   if (barBounds.length === 0) return -1;
 
@@ -216,15 +231,25 @@ function handleMouseMove(e) {
 
 function handleClick(e) {
   if (state.playing || state.hoverBeat < 0) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const rawBeat = getRawBeatFromX(x);
+
+  if (rawBeat >= 0) {
+    const clickedNoteIdx = state.notes.findIndex(n => {
+      const nEnd = n.startBeat + getEffectiveDuration(n.val, n.dot, n.triplet);
+      return rawBeat >= n.startBeat && rawBeat < nEnd;
+    });
+
+    if (clickedNoteIdx >= 0) {
+      state.notes.splice(clickedNoteIdx, 1);
+      render();
+      return;
+    }
+  }
+
   const dur = getEffectiveDuration(state.val, state.dot, state.triplet);
   const endBeat = state.hoverBeat + dur;
-
-  const exactMatchIdx = state.notes.findIndex(n => Math.abs(n.startBeat - state.hoverBeat) < 0.001);
-  if (exactMatchIdx >= 0) {
-    state.notes.splice(exactMatchIdx, 1);
-    render();
-    return;
-  }
 
   const collision = state.notes.some(n => {
     const nEnd = n.startBeat + getEffectiveDuration(n.val, n.dot, n.triplet);
@@ -251,11 +276,11 @@ function handleRightClick(e) {
   if (state.playing) return;
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
-  const beat = getBeatFromX(x);
+  const rawBeat = getRawBeatFromX(x);
 
   const idx = state.notes.findIndex(n => {
     const nEnd = n.startBeat + getEffectiveDuration(n.val, n.dot, n.triplet);
-    return beat >= n.startBeat && beat <= nEnd;
+    return rawBeat >= n.startBeat && rawBeat < nEnd;
   });
 
   if (idx >= 0) {
@@ -264,13 +289,18 @@ function handleRightClick(e) {
   }
 }
 
-function valToVexDur(val, type) {
+function valToVexDur(val, type, dot = 0) {
   let v = "q";
   if (val >= 4) v = "w";
   else if (val >= 2) v = "h";
   else if (val >= 1) v = "q";
   else if (val >= 0.5) v = "8";
   else if (val >= 0.25) v = "16";
+  else if (val >= 0.125) v = "32";
+  else if (val >= 0.0625) v = "64";
+
+  if (dot === 1) v += "d";
+  else if (dot === 2) v += "dd";
 
   return v + (type === 'rest' ? 'r' : '');
 }
@@ -322,8 +352,8 @@ function render() {
     const barEndBeat = barStartBeat + state.beatsPerBar;
     const barNotes = state.notes.filter(n => n.startBeat >= barStartBeat && n.startBeat < barEndBeat);
 
-    const notationPadding = 15;
-    const usableWidth = (barBounds[b].endX - barBounds[b].startX) - notationPadding;
+    const MARGIN = 2;
+    const usableWidth = (barBounds[b].endX - barBounds[b].startX) - (MARGIN * 2);
 
     let vexNotes = [];
     let currentBeatInBar = 0;
@@ -337,19 +367,19 @@ function render() {
         if (currentBeatInBar < noteStartBeatInBar - 0.001) {
           let gap = noteStartBeatInBar - currentBeatInBar;
           while (gap > 0.01) {
-            let fillVal = gap >= 4 ? 4 : gap >= 2 ? 2 : gap >= 1 ? 1 : gap >= 0.5 ? 0.5 : 0.25;
-            const rest = new VF.StaveNote({ 
-              keys: ["b/4"], 
-              duration: valToVexDur(fillVal, 'rest'),
+            let fillVal = gap >= 4 ? 4 : gap >= 2 ? 2 : gap >= 1 ? 1 : gap >= 0.5 ? 0.5 : gap >= 0.25 ? 0.25 : gap >= 0.125 ? 0.125 : 0.0625;
+            const rest = new VF.StaveNote({
+              keys: ["b/4"],
+              duration: valToVexDur(fillVal, 'rest', 0),
               stem_direction: -1
             }).setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
 
+            rest.setStave(stave);
             const tickContext = new VF.TickContext();
             tickContext.setX((currentBeatInBar / state.beatsPerBar) * usableWidth);
+            rest.setTickContext(tickContext);
             tickContext.addTickable(rest);
             tickContext.preFormat();
-            rest.setStave(stave);
-            rest.setTickContext(tickContext);
             vexNotes.push(rest);
 
             gap -= fillVal;
@@ -360,19 +390,20 @@ function render() {
         const color = n.type === 'rest' ? '#64748b' : '#0f172a';
         let staveNote = new VF.StaveNote({
           keys: [n.type === 'rest' ? "b/4" : "b/4"],
-          duration: valToVexDur(n.val, n.type),
+          duration: valToVexDur(n.val, n.type, n.dot),
           stem_direction: -1
         }).setStyle({ fillStyle: color, strokeStyle: color });
 
-        if (n.dot > 0) VF.Dot.buildAndAttach([staveNote], { all: true });
-        if (n.dot > 1) VF.Dot.buildAndAttach([staveNote], { all: true });
+        if (n.dot > 0) {
+          VF.Dot.buildAndAttach([staveNote], { all: true });
+        }
 
+        staveNote.setStave(stave);
         const tickContext = new VF.TickContext();
         tickContext.setX((currentBeatInBar / state.beatsPerBar) * usableWidth);
+        staveNote.setTickContext(tickContext);
         tickContext.addTickable(staveNote);
         tickContext.preFormat();
-        staveNote.setStave(stave);
-        staveNote.setTickContext(tickContext);
 
         vexNotes.push(staveNote);
         allRenderedNotes.push({ stateNote: n, vexNote: staveNote });
@@ -383,19 +414,19 @@ function render() {
         let gap = state.beatsPerBar - currentBeatInBar;
         if (gap > 0.001) {
           while (gap > 0.01) {
-            let fillVal = gap >= 4 ? 4 : gap >= 2 ? 2 : gap >= 1 ? 1 : gap >= 0.5 ? 0.5 : 0.25;
-            const rest = new VF.StaveNote({ 
-              keys: ["b/4"], 
-              duration: valToVexDur(fillVal, 'rest'),
+            let fillVal = gap >= 4 ? 4 : gap >= 2 ? 2 : gap >= 1 ? 1 : gap >= 0.5 ? 0.5 : gap >= 0.25 ? 0.25 : gap >= 0.125 ? 0.125 : 0.0625;
+            const rest = new VF.StaveNote({
+              keys: ["b/4"],
+              duration: valToVexDur(fillVal, 'rest', 0),
               stem_direction: -1
             }).setStyle({ fillStyle: '#cbd5e1', strokeStyle: '#cbd5e1' });
 
+            rest.setStave(stave);
             const tickContext = new VF.TickContext();
             tickContext.setX((currentBeatInBar / state.beatsPerBar) * usableWidth);
+            rest.setTickContext(tickContext);
             tickContext.addTickable(rest);
             tickContext.preFormat();
-            rest.setStave(stave);
-            rest.setTickContext(tickContext);
             vexNotes.push(rest);
 
             gap -= fillVal;
@@ -412,7 +443,7 @@ function render() {
         beam_rests: true,
         beam_middle_only: true
       });
-      
+
       const validBeams = [];
       beams.forEach(beam => {
         const nonRests = beam.notes.filter(n => !n.isRest());
@@ -423,19 +454,20 @@ function render() {
               if (rn) {
                 const newNote = new VF.StaveNote({
                   keys: ["b/4"],
-                  duration: valToVexDur(rn.stateNote.val, rn.stateNote.type),
+                  duration: valToVexDur(rn.stateNote.val, rn.stateNote.type, rn.stateNote.dot),
                   stem_direction: -1
                 }).setStyle({ fillStyle: '#0f172a', strokeStyle: '#0f172a' });
 
-                if (rn.stateNote.dot > 0) VF.Dot.buildAndAttach([newNote], { all: true });
-                if (rn.stateNote.dot > 1) VF.Dot.buildAndAttach([newNote], { all: true });
+                if (rn.stateNote.dot > 0) {
+                  VF.Dot.buildAndAttach([newNote], { all: true });
+                }
 
+                newNote.setStave(stave);
                 const tc = new VF.TickContext();
                 tc.setX(n.getTickContext().getX());
+                newNote.setTickContext(tc);
                 tc.addTickable(newNote);
                 tc.preFormat();
-                newNote.setStave(stave);
-                newNote.setTickContext(tc);
 
                 const vIdx = vexNotes.indexOf(n);
                 if (vIdx !== -1) vexNotes[vIdx] = newNote;

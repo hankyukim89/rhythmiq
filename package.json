@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "jsdom": "^29.1.0",
+    "vexflow": "^4.2.2"
+  }
+}
